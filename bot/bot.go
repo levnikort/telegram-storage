@@ -6,7 +6,7 @@ import (
 )
 
 type Bot struct {
-	api *botApi.BotAPI
+	API *botApi.BotAPI
 }
 
 func New() *Bot {
@@ -17,6 +17,6 @@ func New() *Bot {
 	}
 
 	return &Bot{
-		api: api,
+		API: api,
 	}
 }

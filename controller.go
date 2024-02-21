@@ -8,6 +8,7 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/go-martini/martini"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/levnikort/telegram-storage/bot"
 	"github.com/levnikort/telegram-storage/config"
 )
@@ -21,8 +22,8 @@ type ResponseFileID struct {
 }
 
 type Controller struct {
-	botApi *bot.Bot
-	cache  gcache.Cache
+	bot   *bot.Bot
+	cache gcache.Cache
 }
 
 func (c *Controller) Download(params martini.Params, res http.ResponseWriter) any {
@@ -60,8 +61,48 @@ func (c *Controller) Download(params martini.Params, res http.ResponseWriter) an
 	return nil
 }
 
-func (c *Controller) Upload() any {
-	return nil
+func (c *Controller) Upload(req *http.Request, res http.ResponseWriter, params martini.Params) any {
+	var inputMedia interface{}
+	fileType := params["file_type"]
+	fileName := req.Header.Get("file-Name")
+	fileReader := tgbotapi.FileReader{Name: fileName, Reader: req.Body}
+
+	if fileType == "photo" {
+		inputMedia = tgbotapi.NewInputMediaPhoto(fileReader)
+	} else {
+		inputMedia = tgbotapi.NewInputMediaDocument(fileReader)
+	}
+
+	metaData, err := c.bot.API.SendMediaGroup(
+		tgbotapi.NewMediaGroup(
+			int64(config.Config.TelegramChatID),
+			[]interface{}{inputMedia},
+		),
+	)
+
+	if err != nil {
+		fmt.Println(err)
+		res.WriteHeader(http.StatusBadRequest)
+		return nil
+	}
+
+	defer req.Body.Close()
+
+	var b []byte
+	var errConvert error
+
+	if fileType == "photo" {
+		b, errConvert = json.Marshal(metaData[0].Photo)
+	} else {
+		b, errConvert = json.Marshal(metaData[0].Document)
+	}
+
+	if errConvert != nil {
+		res.WriteHeader(500)
+		return "json convert error"
+	}
+
+	return string(b)
 }
 
 func (c *Controller) getFile(filePath string, res http.ResponseWriter) io.ReadCloser {

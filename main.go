@@ -19,7 +19,7 @@ func main() {
 	s := martini.Classic()
 
 	s.Get("/:file_id", controller.Download)
-	s.Post("/upload", controller.Upload)
+	s.Post("/upload/:file_type", controller.Upload)
 
 	s.RunOnAddr(":" + config.Config.HttpServerPort)
 }
